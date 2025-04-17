@@ -3,118 +3,96 @@
 import { useState } from 'react';
 import { useTransactions } from '@/context/TransactionContext';
 import { categories } from '@/data/categories';
-import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatCurrency } from '@/utils/format';
+
+type TransactionType = 'expense' | 'income';
 
 interface TransactionFormProps {
-  transaction: {
+  transaction?: {
     id: string;
     amount: number;
     date: string;
     description: string;
     category: string;
-    type: 'expense' | 'income';
-  } | undefined;
-  onClose: () => void;
+    type: TransactionType;
+  };
+  onClose?: () => void;
 }
 
-export function TransactionForm({ transaction, onClose }: TransactionFormProps) {
-  const { addTransaction, updateTransaction } = useTransactions();
-  const [formData, setFormData] = useState(() => ({
-    amount: transaction?.amount?.toString() || '',
-    date: transaction?.date || format(new Date(), 'yyyy-MM-dd'),
-    description: transaction?.description || '',
-    category: transaction?.category || 'other',
-    type: transaction?.type || 'expense',
-  }));
+export function TransactionForm({ transaction, onClose }: TransactionFormProps = {}) {
   const [open, setOpen] = useState(false);
+  const { addTransaction, updateTransaction, isLoading } = useTransactions();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [formData, setFormData] = useState({
+    type: transaction?.type || 'expense' as TransactionType,
+    category: transaction?.category || categories[0].name,
+    amount: transaction?.amount?.toString() || '',
+    description: transaction?.description || '',
+    date: transaction?.date || new Date().toISOString().split('T')[0],
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const amount = parseFloat(formData.amount);
-    if (isNaN(amount) || !formData.description) {
-      alert('Please fill in all required fields');
-      return;
-    }
-
     const transactionData = {
-      amount,
-      date: formData.date,
-      description: formData.description,
+      type: formData.type,
       category: formData.category,
-      type: formData.type as 'expense' | 'income',
+      amount: parseFloat(formData.amount),
+      description: formData.description,
+      date: formData.date,
     };
 
-    if (transaction) {
-      updateTransaction(transaction.id, transactionData);
-    } else {
-      addTransaction(transactionData);
+    try {
+      if (transaction?.id) {
+        await updateTransaction(transaction.id, transactionData);
+      } else {
+        await addTransaction(transactionData);
+      }
+      setOpen(false);
+      onClose?.();
+      // Reset form
+      setFormData({
+        type: 'expense' as TransactionType,
+        category: categories[0].name,
+        amount: '',
+        description: '',
+        date: new Date().toISOString().split('T')[0],
+      });
+    } catch (error) {
+      console.error('Error saving transaction:', error);
     }
-    onClose();
-    setOpen(false);
   };
 
   return (
     <>
-      <Button
-        onClick={() => setOpen(true)}
-        className="bg-green-500 hover:bg-green-600 text-white"
-      >
-        <span className="mr-2">+</span>
-        Add Transaction
-      </Button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[625px]">
+      {!transaction && (
+        <Button onClick={() => setOpen(true)} className="w-full">
+          Add Transaction
+        </Button>
+      )}
+      <Dialog open={transaction ? true : open} onOpenChange={setOpen}>
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {transaction ? 'Edit Transaction' : 'Add New Transaction'}
-            </DialogTitle>
+            <DialogTitle>{transaction ? 'Edit Transaction' : 'Add Transaction'}</DialogTitle>
           </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="amount">Amount</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                  <Input
-                    type="number"
-                    id="amount"
-                    value={formData.amount}
-                    onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                    placeholder="0.00"
-                    className="pl-8"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label htmlFor="date">Date</Label>
-                <Input
-                  type="date"
-                  id="date"
-                  value={formData.date}
-                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                  max={format(new Date(), 'yyyy-MM-dd')}
-                  className="w-full"
-                />
-              </div>
-            </div>
-
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="description">Description</Label>
-              <Input
-                type="text"
-                id="description"
-                value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                placeholder="Enter transaction description"
-                className="w-full"
-              />
+              <Label htmlFor="type">Type</Label>
+              <Select
+                value={formData.type}
+                onValueChange={(value: TransactionType) => setFormData({ ...formData, type: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="expense">Expense</SelectItem>
+                  <SelectItem value="income">Income</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div>
@@ -128,13 +106,10 @@ export function TransactionForm({ transaction, onClose }: TransactionFormProps) 
                 </SelectTrigger>
                 <SelectContent>
                   {categories
-                    .filter((c) => c.type === 'expense')
+                    .filter((c) => formData.type === 'expense' ? c.type === 'expense' : true)
                     .map((category) => (
                       <SelectItem key={category.id} value={category.name}>
-                        <div className="flex items-center space-x-2">
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: category.color }} />
-                          <span>{category.name}</span>
-                        </div>
+                        {category.name}
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -142,36 +117,51 @@ export function TransactionForm({ transaction, onClose }: TransactionFormProps) 
             </div>
 
             <div>
-              <Label htmlFor="type">Type</Label>
-              <Select
-                value={formData.type}
-                onValueChange={(value) => setFormData({ ...formData, type: value as 'expense' | 'income' })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="expense">Expense</SelectItem>
-                  <SelectItem value="income">Income</SelectItem>
-                </SelectContent>
-              </Select>
+              <Label htmlFor="amount">Amount</Label>
+              <Input
+                type="number"
+                id="amount"
+                value={formData.amount}
+                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                placeholder="Enter amount"
+                min="0"
+                step="0.01"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="description">Description</Label>
+              <Input
+                type="text"
+                id="description"
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                placeholder="Enter description"
+                required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="date">Date</Label>
+              <Input
+                type="date"
+                id="date"
+                value={formData.date}
+                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                required
+              />
             </div>
 
             <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={onClose}>
+              <Button type="button" variant="outline" onClick={() => {
+                setOpen(false);
+                onClose?.();
+              }}>
                 Cancel
               </Button>
-              <Button type="submit">
-                {transaction ? 'Update' : 'Add'} Transaction
-              </Button>
-            </div>
-
-            <div className="flex justify-end space-x-2">
-              <Button type="button" variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
-              <Button type="submit">
-                {transaction ? 'Update' : 'Add'} Transaction
+              <Button type="submit" disabled={isLoading}>
+                {isLoading ? 'Saving...' : (transaction ? 'Update' : 'Add')}
               </Button>
             </div>
           </form>

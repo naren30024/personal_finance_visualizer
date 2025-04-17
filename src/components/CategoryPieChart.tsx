@@ -2,57 +2,55 @@
 
 import { useTransactions } from '@/context/TransactionContext';
 import { categories } from '@/data/categories';
-import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { format } from 'date-fns';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 
 export function CategoryPieChart() {
   const { transactions } = useTransactions();
 
-  // Group expenses by category
-  const categoryExpenses = transactions
+  // Calculate total by category
+  const categoryTotals = transactions
     .filter((t) => t.type === 'expense')
     .reduce((acc, transaction) => {
       const category = categories.find((c) => c.name.toLowerCase() === transaction.category.toLowerCase());
       if (category) {
-        if (!acc[category.name]) {
-          acc[category.name] = 0;
-        }
-        acc[category.name] += transaction.amount;
+        acc[category.id] = (acc[category.id] || 0) + transaction.amount;
       }
       return acc;
     }, {} as Record<string, number>);
 
-  // Convert to array for chart data
-  const chartData = Object.entries(categoryExpenses).map(([category, amount]) => ({
-    name: category,
-    value: amount,
-  }));
+  // Prepare data for pie chart
+  const data = categories
+    .filter((c) => categoryTotals[c.id] && categoryTotals[c.id] > 0)
+    .map((category) => ({
+      name: category.name,
+      value: categoryTotals[category.id],
+      color: category.color || '#' + Math.floor(Math.random()*16777215).toString(16),
+    }));
 
-  // Sort categories by amount in descending order
-  const sortedChartData = chartData.sort((a, b) => b.value - a.value);
+  const formatValue = (value: number | string) => {
+    const numValue = typeof value === 'string' ? parseFloat(value) : value;
+    return `$${numValue.toFixed(2)}`;
+  };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <h3 className="text-xl font-semibold mb-4">Category Breakdown</h3>
-      <ResponsiveContainer width="100%" height={300}>
+    <div className="w-full h-96">
+      <ResponsiveContainer width="100%" height="100%">
         <PieChart>
           <Pie
-            data={sortedChartData}
+            data={data}
+            dataKey="value"
+            nameKey="name"
             cx="50%"
             cy="50%"
-            innerRadius={60}
-            outerRadius={80}
-            fill="#8884d8"
-            paddingAngle={5}
-            dataKey="value"
+            outerRadius={120}
+            label={(entry) => entry.name}
           >
-            {sortedChartData.map((entry, index) => (
-              <Cell
-                key={`cell-${index}`}
-                fill={categories.find((c) => c.name === entry.name)?.color || '#8884d8'}
-              />
+            {data.map((entry, index) => (
+              <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
           </Pie>
+          <Tooltip formatter={formatValue} />
+          <Legend />
         </PieChart>
       </ResponsiveContainer>
     </div>

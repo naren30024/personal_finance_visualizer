@@ -1,117 +1,92 @@
 'use client';
 
 import { useTransactions } from '@/context/TransactionContext';
-import { format } from 'date-fns';
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency } from '@/utils/format';
+import { categories } from '@/data/categories';
+import { TransactionForm } from './TransactionForm';
+import { TransactionList } from './TransactionList';
+import { BudgetForm } from './BudgetForm';
+import { CategoryPieChart } from './CategoryPieChart';
+import { BudgetComparisonChart } from './BudgetComparisonChart';
+import { MonthlyExpensesChart } from './MonthlyExpensesChart';
 
 export function Dashboard() {
-  const { transactions } = useTransactions();
+  const { transactions, isLoading, error, usingSampleData } = useTransactions();
 
-  // Calculate total expenses
-  const totalExpenses = transactions
-    .filter((t) => t.type === 'expense')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  // Calculate total income
-  const totalIncome = transactions
-    .filter((t) => t.type === 'income')
-    .reduce((sum, t) => sum + t.amount, 0);
-
-  // Get most recent transactions (last 5)
-  const recentTransactions = transactions
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-    .slice(0, 5);
-
-  // Calculate category breakdown
-  const categoryExpenses = transactions
-    .filter((t) => t.type === 'expense')
-    .reduce((acc, transaction) => {
-      const category = transaction.category;
-      if (!acc[category]) {
-        acc[category] = 0;
+  // Calculate total income and expenses
+  const totals = transactions.reduce(
+    (acc, transaction) => {
+      if (transaction.type === 'income') {
+        acc.income += transaction.amount;
+      } else {
+        acc.expenses += transaction.amount;
       }
-      acc[category] += transaction.amount;
       return acc;
-    }, {} as Record<string, number>);
-
-  // Get top 3 categories by expense
-  const topCategories = Object.entries(categoryExpenses)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 3);
+    },
+    { income: 0, expenses: 0 }
+  );
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      {/* Summary Cards */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Total Expenses</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-red-500">
-            {formatCurrency(totalExpenses)}
-          </div>
-        </CardContent>
-      </Card>
+    <div className="container mx-auto px-4 py-8">
+      {usingSampleData && (
+        <div className="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-4">
+          Using sample data. Your transactions will be saved to the database when you add them.
+        </div>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Total Income</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-green-500">
-            {formatCurrency(totalIncome)}
-          </div>
-        </CardContent>
-      </Card>
+      {error && (
+        <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-4">
+          {error}
+        </div>
+      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Net Balance</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold {totalIncome - totalExpenses >= 0 ? 'text-green-500' : 'text-red-500'}">
-            {formatCurrency(totalIncome - totalExpenses)}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-2xl font-semibold mb-4">Summary</h2>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="p-4 bg-green-50 rounded-lg">
+              <h3 className="text-lg font-medium text-green-800">Income</h3>
+              <p className="text-2xl font-bold text-green-600">
+                ${totals.income.toFixed(2)}
+              </p>
+            </div>
+            <div className="p-4 bg-red-50 rounded-lg">
+              <h3 className="text-lg font-medium text-red-800">Expenses</h3>
+              <p className="text-2xl font-bold text-red-600">
+                ${totals.expenses.toFixed(2)}
+              </p>
+            </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Recent Transactions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Transactions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {recentTransactions.map((transaction) => (
-              <div key={transaction.id} className="flex justify-between items-center">
-                <span>{transaction.description}</span>
-                <span className={transaction.type === 'expense' ? 'text-red-500' : 'text-green-500'}>
-                  {transaction.type === 'expense' ? '-' : '+'}
-                  {formatCurrency(transaction.amount)}
-                </span>
-              </div>
-            ))}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-2xl font-semibold mb-4">Quick Actions</h2>
+          <div className="flex gap-4">
+            <TransactionForm />
+            <BudgetForm />
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
-      {/* Top Categories */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Top Categories</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {topCategories.map(([category, amount]) => (
-              <div key={category} className="flex justify-between items-center">
-                <span>{category}</span>
-                <span className="text-red-500">{formatCurrency(amount)}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-2xl font-semibold mb-4">Category Breakdown</h2>
+          <CategoryPieChart />
+        </div>
+        <div className="bg-white p-6 rounded-lg shadow">
+          <h2 className="text-2xl font-semibold mb-4">Budget vs Actual</h2>
+          <BudgetComparisonChart />
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow mb-8">
+        <h2 className="text-2xl font-semibold mb-4">Monthly Trends</h2>
+        <MonthlyExpensesChart />
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow">
+        <h2 className="text-2xl font-semibold mb-4">Recent Transactions</h2>
+        <TransactionList />
+      </div>
     </div>
   );
 }

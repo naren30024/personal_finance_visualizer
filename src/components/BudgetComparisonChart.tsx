@@ -8,7 +8,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsive
 
 export function BudgetComparisonChart() {
   const { transactions } = useTransactions();
-  const { budgets, getBudget } = useBudgets();
+  const { getBudget } = useBudgets();
 
   // Get current month
   const currentMonth = format(new Date(), 'yyyy-MM');
@@ -19,47 +19,41 @@ export function BudgetComparisonChart() {
     .reduce((acc, transaction) => {
       const category = categories.find((c) => c.name.toLowerCase() === transaction.category.toLowerCase());
       if (category) {
-        if (!acc[category.name]) {
-          acc[category.name] = 0;
-        }
-        acc[category.name] += transaction.amount;
+        acc[category.id] = (acc[category.id] || 0) + transaction.amount;
       }
       return acc;
     }, {} as Record<string, number>);
 
-  // Get budget data for current month
-  const budgetData = categories
-    .filter((c) => c.type === 'expense')
-    .map((category) => ({
+  // Prepare data for chart
+  const data = categories.map((category) => {
+    const budgetAmount = getBudget(category.id, currentMonth) || 0;
+    const actualAmount = actualExpenses[category.id] || 0;
+    return {
       name: category.name,
-      budget: getBudget(category.id, currentMonth) || 0,
-      actual: actualExpenses[category.name] || 0,
-      color: category.color,
-    }))
-    .filter((data) => data.budget > 0 || data.actual > 0); // Only show categories with data
+      Budget: budgetAmount,
+      Actual: actualAmount,
+    };
+  });
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow">
-      <h3 className="text-xl font-semibold mb-4">Budget vs Actual</h3>
-      <ResponsiveContainer width="100%" height={400}>
-        <BarChart data={budgetData}>
+    <div className="w-full h-96">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart
+          data={data}
+          margin={{
+            top: 20,
+            right: 30,
+            left: 20,
+            bottom: 5,
+          }}
+        >
           <CartesianGrid strokeDasharray="3 3" />
           <XAxis dataKey="name" />
           <YAxis />
           <Tooltip />
           <Legend />
-          <Bar
-            dataKey="budget"
-            name="Budget"
-            fill="#4ade80"
-            radius={[4, 4, 0, 0]}
-          />
-          <Bar
-            dataKey="actual"
-            name="Actual"
-            fill="#f87171"
-            radius={[4, 4, 0, 0]}
-          />
+          <Bar dataKey="Budget" fill="#8884d8" />
+          <Bar dataKey="Actual" fill="#82ca9d" />
         </BarChart>
       </ResponsiveContainer>
     </div>

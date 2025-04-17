@@ -1,0 +1,9 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NEXT_PUBLIC_SITE_URL = "https://personal-finance-visualizer.netlify.app"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"

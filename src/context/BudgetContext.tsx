@@ -1,7 +1,6 @@
 'use client';
 
 import { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { Category } from '@/data/categories';
 import { format } from 'date-fns';
 
 interface Budget {

@@ -1,17 +1,16 @@
-export interface Transaction {
-  id?: string;
+export interface BaseTransaction {
   amount: number;
-  date: Date | string;
+  date: string;  // ISO string format
   description: string;
   category: string;
   type: 'expense' | 'income';
+}
+
+export interface Transaction extends BaseTransaction {
+  id: string;
   createdAt?: Date;
 }
 
-export interface TransactionInput {
-  amount: number;
-  date: string;
-  description: string;
-  category: string;
-  type: 'expense' | 'income';
+export interface TransactionInput extends BaseTransaction {
+  id?: never;
 }

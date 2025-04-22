@@ -24,10 +24,6 @@ const nextConfig = {
       },
     ];
   },
-  webpack: (config) => {
-    config.externals = [...config.externals, 'mongodb'];
-    return config;
-  },
 };
 
 module.exports = nextConfig;

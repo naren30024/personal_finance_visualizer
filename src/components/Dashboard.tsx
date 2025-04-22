@@ -1,16 +1,15 @@
 'use client';
 
 import { useTransactions } from '@/context/TransactionContext';
-import { categories } from '@/data/categories';
-import { TransactionForm } from './TransactionForm';
-import { TransactionList } from './TransactionList';
-import { BudgetForm } from './BudgetForm';
 import { CategoryPieChart } from './CategoryPieChart';
 import { BudgetComparisonChart } from './BudgetComparisonChart';
 import { MonthlyExpensesChart } from './MonthlyExpensesChart';
+import { TransactionList } from './TransactionList';
+import { TransactionForm } from './TransactionForm';
+import { BudgetForm } from './BudgetForm';
 
 export function Dashboard() {
-  const { transactions, isLoading, error, usingSampleData } = useTransactions();
+  const { transactions,  error, usingSampleData } = useTransactions();
 
   // Calculate total income and expenses
   const totals = transactions.reduce(

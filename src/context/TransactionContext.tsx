@@ -1,14 +1,14 @@
 'use client';
 
 import { createContext, useState, useContext, ReactNode, useEffect } from 'react';
-import { Transaction } from '@/types/transaction';
+import { Transaction, TransactionInput } from '@/types/transaction';
 import { sampleTransactions } from '@/data/sampleData';
 
 interface TransactionContextType {
   transactions: Transaction[];
-  addTransaction: (transaction: Omit<Transaction, '_id'>) => Promise<void>;
+  addTransaction: (transaction: TransactionInput) => Promise<void>;
   deleteTransaction: (id: string) => Promise<void>;
-  updateTransaction: (id: string, transaction: Partial<Transaction>) => Promise<void>;
+  updateTransaction: (id: string, transaction: TransactionInput) => Promise<void>;
   isLoading: boolean;
   error: string | null;
   usingSampleData: boolean;
@@ -49,15 +49,10 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
-
-  const addTransaction = async (transaction: Omit<Transaction, '_id'>) => {
+  const addTransaction = async (transaction: TransactionInput) => {
     setIsLoading(true);
     setError(null);
     try {
-      // Add to database
       const response = await fetch('/api/transactions', {
         method: 'POST',
         headers: {
@@ -70,15 +65,10 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // If using sample data, also update local state
+      const newTransaction = await response.json();
       if (usingSampleData) {
-        const newTransaction = {
-          ...transaction,
-          id: (transactions.length + 1).toString(),
-        };
         setTransactions([...transactions, newTransaction]);
       } else {
-        // Refresh transactions from database
         await fetchTransactions();
       }
     } catch (error) {
@@ -90,11 +80,10 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const updateTransaction = async (id: string, transaction: Partial<Transaction>) => {
+  const updateTransaction = async (id: string, transaction: TransactionInput) => {
     setIsLoading(true);
     setError(null);
     try {
-      // Update in database
       const response = await fetch('/api/transactions', {
         method: 'PUT',
         headers: {
@@ -107,13 +96,11 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // If using sample data, also update local state
       if (usingSampleData) {
         setTransactions(transactions.map(t => 
           t.id === id ? { ...t, ...transaction } : t
         ));
       } else {
-        // Refresh transactions from database
         await fetchTransactions();
       }
     } catch (error) {
@@ -129,7 +116,6 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     setError(null);
     try {
-      // Delete from database
       const response = await fetch(`/api/transactions?id=${id}`, {
         method: 'DELETE',
       });
@@ -138,11 +124,9 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      // If using sample data, also update local state
       if (usingSampleData) {
         setTransactions(transactions.filter(t => t.id !== id));
       } else {
-        // Refresh transactions from database
         await fetchTransactions();
       }
     } catch (error) {
@@ -153,6 +137,10 @@ export function TransactionProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchTransactions();
+  }, []);
 
   return (
     <TransactionContext.Provider

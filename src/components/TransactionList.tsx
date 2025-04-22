@@ -5,48 +5,24 @@ import { useTransactions } from '@/context/TransactionContext';
 import { categories } from '@/data/categories';
 import { format } from 'date-fns';
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { formatCurrency } from '@/utils/format';
 import { Edit2, Trash2 } from 'lucide-react';
 import { TransactionForm } from './TransactionForm';
-
-interface TransactionFormProps {
-  transaction?: {
-    id: string;
-    amount: number;
-    date: string;
-    description: string;
-    category: string;
-    type: 'expense' | 'income';
-  } | undefined;
-  onClose: () => void;
-}
+import { Transaction } from '@/types/transaction';
 
 export function TransactionList() {
   const { transactions, deleteTransaction } = useTransactions();
   const [showDialog, setShowDialog] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState<{
-    id: string;
-    amount: number;
-    date: string;
-    description: string;
-    category: string;
-    type: 'expense' | 'income';
-  } | undefined>(undefined);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>(undefined);
 
-  const handleEdit = (transaction: {
-    id: string;
-    amount: number;
-    date: string;
-    description: string;
-    category: string;
-    type: 'expense' | 'income';
-  }) => {
+  const handleEdit = (transaction: Transaction) => {
     setEditingTransaction(transaction);
     setShowDialog(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    if (window.confirm('Are you sure you want to delete this transaction?')) {
+      await deleteTransaction(id);
+    }
   };
 
   return (
@@ -58,7 +34,7 @@ export function TransactionList() {
             <Button variant="outline">This Month</Button>
             <Button variant="outline">Last 3 Months</Button>
             <Button variant="outline">All Time</Button>
-            <Button onClick={() => setShowDialog(true)}>Add Transaction</Button>
+            {/* <Button onClick={() => setShowDialog(true)}>Add Transaction</Button> */}
           </div>
         </div>
 
@@ -103,7 +79,7 @@ export function TransactionList() {
                       }`}
                     >
                       {transaction.type === 'expense' ? '-' : '+'}
-                      {formatCurrency(transaction.amount)}
+                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(transaction.amount)}
                     </span>
                   </td>
                   <td className="py-4 text-right">
@@ -120,7 +96,7 @@ export function TransactionList() {
                         variant="ghost"
                         size="icon"
                         className="text-red-500 hover:text-red-600"
-                        onClick={() => deleteTransaction(transaction.id)}
+                        onClick={() => handleDelete(transaction.id)}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -132,22 +108,16 @@ export function TransactionList() {
           </table>
         </div>
       </div>
-      <Dialog open={showDialog} onOpenChange={setShowDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingTransaction ? 'Edit Transaction' : 'Add Transaction'}
-            </DialogTitle>
-          </DialogHeader>
-          <TransactionForm
-            transaction={editingTransaction}
-            onClose={() => {
-              setShowDialog(false);
-              setEditingTransaction(undefined);
-            }}
-          />
-        </DialogContent>
-      </Dialog>
+
+      {showDialog && (
+        <TransactionForm
+          transaction={editingTransaction}
+          onClose={() => {
+            setShowDialog(false);
+            setEditingTransaction(undefined);
+          }}
+        />
+      )}
     </div>
   );
 }

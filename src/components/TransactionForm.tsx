@@ -8,44 +8,44 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
-type TransactionType = 'expense' | 'income';
+import { Transaction, TransactionInput } from '@/types/transaction';
 
 interface TransactionFormProps {
-  transaction?: {
-    id: string;
-    amount: number;
-    date: string;
-    description: string;
-    category: string;
-    type: TransactionType;
-  };
+  transaction?: Transaction;
   onClose?: () => void;
 }
+
+const formatDateForInput = (dateStr: string) => {
+  const date = new Date(dateStr);
+  return date.toISOString().split('T')[0];
+};
+
+const formatDateForApi = (dateStr: string) => {
+  const date = new Date(dateStr);
+  return date.toISOString();
+};
 
 export function TransactionForm({ transaction, onClose }: TransactionFormProps = {}) {
   const [open, setOpen] = useState(false);
   const { addTransaction, updateTransaction, isLoading } = useTransactions();
 
-  const [formData, setFormData] = useState({
-    type: transaction?.type || 'expense' as TransactionType,
+  const [formData, setFormData] = useState<TransactionInput>({
+    type: transaction?.type || 'expense',
     category: transaction?.category || categories[0].name,
-    amount: transaction?.amount?.toString() || '',
+    amount: transaction?.amount || 0,
     description: transaction?.description || '',
-    date: transaction?.date || new Date().toISOString().split('T')[0],
+    date: transaction?.date ? formatDateForInput(transaction.date) : formatDateForInput(new Date().toISOString()),
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const transactionData = {
-      type: formData.type,
-      category: formData.category,
-      amount: parseFloat(formData.amount),
-      description: formData.description,
-      date: formData.date,
-    };
 
     try {
+      const transactionData: TransactionInput = {
+        ...formData,
+        date: formatDateForApi(formData.date),
+      };
+
       if (transaction?.id) {
         await updateTransaction(transaction.id, transactionData);
       } else {
@@ -55,11 +55,11 @@ export function TransactionForm({ transaction, onClose }: TransactionFormProps =
       onClose?.();
       // Reset form
       setFormData({
-        type: 'expense' as TransactionType,
+        type: 'expense',
         category: categories[0].name,
-        amount: '',
+        amount: 0,
         description: '',
-        date: new Date().toISOString().split('T')[0],
+        date: formatDateForInput(new Date().toISOString()),
       });
     } catch (error) {
       console.error('Error saving transaction:', error);
@@ -69,7 +69,7 @@ export function TransactionForm({ transaction, onClose }: TransactionFormProps =
   return (
     <>
       {!transaction && (
-        <Button onClick={() => setOpen(true)} className="w-full">
+        <Button onClick={() => setOpen(true)} className="w-fit-content">
           Add Transaction
         </Button>
       )}
@@ -83,7 +83,7 @@ export function TransactionForm({ transaction, onClose }: TransactionFormProps =
               <Label htmlFor="type">Type</Label>
               <Select
                 value={formData.type}
-                onValueChange={(value: TransactionType) => setFormData({ ...formData, type: value })}
+                onValueChange={(value: 'expense' | 'income') => setFormData({ ...formData, type: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select type" />
@@ -122,7 +122,7 @@ export function TransactionForm({ transaction, onClose }: TransactionFormProps =
                 type="number"
                 id="amount"
                 value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, amount: parseFloat(e.target.value) || 0 })}
                 placeholder="Enter amount"
                 min="0"
                 step="0.01"
